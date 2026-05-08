@@ -1,31 +1,48 @@
-# Streamlitライブラリをインポート
 import streamlit as st
+from paddleocr import PaddleOCR
+from PIL import Image
+import numpy as np
 
-# ページ設定（タブに表示されるタイトル、表示幅）
-st.set_page_config(page_title="タイトル", layout="wide")
+st.title("AI OCR アプリ")
 
-# タイトルを設定
-st.title('Streamlitのサンプルアプリ')
+# OCRモデル読み込み
+@st.cache_resource
+def load_ocr():
+    return PaddleOCR(
+        use_angle_cls=True,
+        lang='japan'
+    )
 
-# テキスト入力ボックスを作成し、ユーザーからの入力を受け取る
-user_input = st.text_input('あなたの名前を入力してください')
+ocr = load_ocr()
 
-# ボタンを作成し、クリックされたらメッセージを表示
-if st.button('挨拶する'):
-    if user_input:  # 名前が入力されているかチェック
-        st.success(f'🌟 こんにちは、{user_input}さん! 🌟')  # メッセージをハイライト
-    else:
-        st.error('名前を入力してください。')  # エラーメッセージを表示
+# 画像アップロード
+uploaded_file = st.file_uploader(
+    "画像をアップロード",
+    type=["png", "jpg", "jpeg"]
+)
 
-# スライダーを作成し、値を選択
-number = st.slider('好きな数字（10進数）を選んでください', 0, 100)
+if uploaded_file:
 
-# 補足メッセージ
-st.caption("十字キー（左右）でも調整できます。")
+    image = Image.open(uploaded_file)
 
-# 選択した数字を表示
-st.write(f'あなたが選んだ数字は「{number}」です。')
+    st.image(image, caption="アップロード画像")
 
-# 選択した数値を2進数に変換
-binary_representation = bin(number)[2:]  # 'bin'関数で2進数に変換し、先頭の'0b'を取り除く
-st.info(f'🔢 10進数の「{number}」を2進数で表現すると「{binary_representation}」になります。 🔢')  # 2進数の表示をハイライト
+    img_array = np.array(image)
+
+    with st.spinner("OCR実行中..."):
+
+        result = ocr.ocr(img_array)
+
+    extracted_text = ""
+
+    for line in result[0]:
+        text = line[1][0]
+        extracted_text += text + "\n"
+
+    st.subheader("認識結果")
+
+    st.text_area(
+        "",
+        extracted_text,
+        height=300
+    )
